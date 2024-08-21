@@ -41,6 +41,7 @@ export default buildConfigWithDefaults({
 
     // Go to page, create a rich text block with a internal link (reference) to the "same page" and try to publish it.
     // CMS is caught in an endless loop
+    // After some time the request is abandoned but the page is never published
     // Same works with pages linking each other.
   },
   db: postgresAdapter({
