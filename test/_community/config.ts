@@ -4,18 +4,15 @@ import path from 'path'
 
 import { buildConfigWithDefaults } from '../buildConfigWithDefaults.js'
 import { devUser } from '../credentials.js'
-import { MediaCollection, mediaSlug } from './collections/Media/index.js'
 import { PostsCollection, postsSlug } from './collections/Posts/index.js'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
-import type { CollectionSlug } from 'payload'
 
 import { postgresAdapter } from '@payloadcms/db-postgres'
-import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 
 export default buildConfigWithDefaults({
-  collections: [PostsCollection, MediaCollection],
+  collections: [PostsCollection],
   admin: {
     importMap: {
       baseDir: path.resolve(dirname),
@@ -32,57 +29,19 @@ export default buildConfigWithDefaults({
       },
     })
 
-    // Create some reference which will later on be deleted
-    const media = await payload.create({
-      collection: mediaSlug as CollectionSlug,
-      filePath: path.resolve('test/_community/collections/Media', 'image1.jpeg'),
-      data: {
-        alt: 'Image 1',
-      },
-    })
-
     // Create a parent page
-    const parent = await payload.create({
-      collection: postsSlug,
-      data: {
-        title: 'parent',
-        slug: 'parent',
-        _status: 'published',
-      },
-    })
-
-    // Create a child page with a block which contains this reference
     await payload.create({
       collection: postsSlug,
       data: {
-        title: 'child',
-        slug: 'child',
+        title: 'page 1',
+        slug: 'page 1',
         _status: 'published',
-        parent: parent.id,
-        content: [
-          {
-            blockName: 'Image',
-            blockType: 'image',
-            image: media.id,
-          },
-        ],
       },
     })
 
-    // delete the image that is references in the child page
-    await payload.delete({
-      collection: mediaSlug,
-      id: media.id,
-    })
-
-    // update the parent
-    await payload.update({
-      collection: postsSlug,
-      id: parent.id,
-      data: {
-        title: 'parent updated',
-      },
-    })
+    // Go to page, create a rich text block with a internal link (reference) to the "same page" and try to publish it.
+    // CMS is caught in an endless loop
+    // Same works with pages linking each other.
   },
   db: postgresAdapter({
     pool: {
@@ -93,14 +52,4 @@ export default buildConfigWithDefaults({
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
   },
-  plugins: [
-    nestedDocsPlugin({
-      collections: ['posts'],
-      generateLabel: (_, doc) => doc['title'] as string,
-      generateURL: (docs) => docs.reduce((url, doc) => `${url}/${doc['slug'] as string}`, ''),
-      // needs to be set to allow moving the fields into tabs
-      parentFieldSlug: 'parent',
-      breadcrumbsFieldSlug: 'breadcrumbs',
-    }),
-  ],
 })

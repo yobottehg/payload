@@ -1,9 +1,6 @@
-import type { CollectionConfig, CollectionSlug } from 'payload'
+import type { CollectionConfig } from 'payload'
 
-import { createBreadcrumbsField, createParentField } from '@payloadcms/plugin-nested-docs'
-
-import { ImageBlock } from '../Blocks/ImageBlock.js'
-import { mediaSlug } from '../Media/index.js'
+import { RichTextBlock } from '../Blocks/RichTextBlock.js'
 
 export const postsSlug = 'posts'
 
@@ -24,12 +21,8 @@ export const PostsCollection: CollectionConfig = {
       name: 'content',
       label: 'Content',
       type: 'blocks',
-      blocks: [ImageBlock],
+      blocks: [RichTextBlock],
     },
-    createParentField('posts', {
-      label: 'Parent Page',
-    }),
-    createBreadcrumbsField('posts', { index: true }),
   ],
   versions: {
     drafts: true,
