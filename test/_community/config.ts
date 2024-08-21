@@ -1,155 +1,28 @@
-import { BlocksFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
+import { lexicalEditor } from '@payloadcms/richtext-lexical'
 import { fileURLToPath } from 'node:url'
 import path from 'path'
 
 import { buildConfigWithDefaults } from '../buildConfigWithDefaults.js'
 import { devUser } from '../credentials.js'
-// import { MediaCollection } from './collections/Media/index.js'
+import { MediaCollection, mediaSlug } from './collections/Media/index.js'
 import { PostsCollection, postsSlug } from './collections/Posts/index.js'
-import { MenuGlobal } from './globals/Menu/index.js'
+
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
+import type { CollectionSlug } from 'payload'
+
+import { postgresAdapter } from '@payloadcms/db-postgres'
+import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
 
 export default buildConfigWithDefaults({
-  // ...extend config here
-  collections: [
-    PostsCollection,
-    {
-      slug: 'simple',
-      fields: [
-        {
-          name: 'text',
-          type: 'text',
-        },
-      ],
-    },
-    // MediaCollection
-  ],
+  collections: [PostsCollection, MediaCollection],
   admin: {
     importMap: {
       baseDir: path.resolve(dirname),
     },
-    avatar: {
-      Component: '/collections/Posts/MyAvatar.js#MyAvatar',
-    },
   },
-  editor: lexicalEditor({
-    features: ({ defaultFeatures }) => [
-      ...defaultFeatures,
-      BlocksFeature({
-        blocks: [
-          {
-            admin: {
-              components: {
-                Label: '/collections/Posts/MyComponent2.js#MyComponent2',
-              },
-            },
-            slug: 'test',
-            fields: [
-              {
-                name: 'test',
-                type: 'text',
-              },
-            ],
-          },
-          {
-            slug: 'someBlock2',
-            fields: [
-              {
-                name: 'test2',
-                type: 'text',
-              },
-            ],
-          },
-        ],
-        inlineBlocks: [
-          {
-            admin: {
-              components: {
-                Label: '/collections/Posts/MyComponent2.js#MyComponent2',
-              },
-            },
-            slug: 'test',
-            fields: [
-              {
-                name: 'test',
-                type: 'text',
-              },
-            ],
-          },
-          {
-            slug: 'someBlock2',
-            fields: [
-              {
-                name: 'test2',
-                type: 'text',
-              },
-            ],
-          },
-        ],
-      }),
-    ],
-  }),
+  editor: lexicalEditor(),
   cors: ['http://localhost:3000', 'http://localhost:3001'],
-  globals: [
-    MenuGlobal,
-    {
-      slug: 'custom-ts',
-      fields: [
-        {
-          name: 'custom',
-          type: 'text',
-          typescriptSchema: [
-            () => ({
-              enum: ['hello', 'world'],
-            }),
-          ],
-        },
-        {
-          name: 'withDefinitionsUsage',
-          type: 'text',
-          typescriptSchema: [
-            () => ({
-              type: 'array',
-              items: {
-                $ref: `#/definitions/objectWithNumber`,
-              },
-            }),
-          ],
-        },
-        {
-          name: 'json',
-          type: 'json',
-          jsonSchema: {
-            fileMatch: ['a://b/foo.json'],
-            schema: {
-              type: 'array',
-              items: {
-                type: 'object',
-                additionalProperties: false,
-                properties: {
-                  id: {
-                    type: 'string',
-                  },
-                  name: {
-                    type: 'string',
-                  },
-                  age: {
-                    type: 'integer',
-                  },
-                  // Add other properties here
-                },
-                required: ['id', 'name'], // Specify which properties are required
-              },
-            },
-            uri: 'a://b/foo.json',
-          },
-          required: true,
-        },
-      ],
-    },
-    // ...add more globals here
-  ],
   onInit: async (payload) => {
     await payload.create({
       collection: 'users',
@@ -159,40 +32,75 @@ export default buildConfigWithDefaults({
       },
     })
 
-    await payload.create({
-      collection: postsSlug,
+    // Create some reference which will later on be deleted
+    const media = await payload.create({
+      collection: mediaSlug as CollectionSlug,
+      filePath: path.resolve('test/_community/collections/Media', 'image1.jpeg'),
       data: {
-        text: 'example post',
+        alt: 'Image 1',
       },
     })
 
-    // // Create image
-    // const imageFilePath = path.resolve(dirname, '../uploads/image.png')
-    // const imageFile = await getFileByPath(imageFilePath)
+    // Create a parent page
+    const parent = await payload.create({
+      collection: postsSlug,
+      data: {
+        title: 'parent',
+        slug: 'parent',
+        _status: 'published',
+      },
+    })
 
-    // await payload.create({
-    //   collection: 'media',
-    //   data: {},
-    //   file: imageFile,
-    // })
+    // Create a child page with a block which contains this reference
+    await payload.create({
+      collection: postsSlug,
+      data: {
+        title: 'child',
+        slug: 'child',
+        _status: 'published',
+        parent: parent.id,
+        content: [
+          {
+            blockName: 'Image',
+            blockType: 'image',
+            image: media.id,
+          },
+        ],
+      },
+    })
+
+    // delete the image that is references in the child page
+    await payload.delete({
+      collection: mediaSlug,
+      id: media.id,
+    })
+
+    // update the parent
+    await payload.update({
+      collection: postsSlug,
+      id: parent.id,
+      data: {
+        title: 'parent updated',
+      },
+    })
   },
+  db: postgresAdapter({
+    pool: {
+      connectionString: 'postgres://postgres:postgres@localhost:5432/postgres',
+    },
+    migrationDir: 'migrations',
+  }),
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),
-    schema: [
-      ({ jsonSchema }) => {
-        jsonSchema.definitions.objectWithNumber = {
-          type: 'object',
-          additionalProperties: false,
-          properties: {
-            id: {
-              type: 'number',
-              required: true,
-            },
-          },
-          required: true,
-        }
-        return jsonSchema
-      },
-    ],
   },
+  plugins: [
+    nestedDocsPlugin({
+      collections: ['posts'],
+      generateLabel: (_, doc) => doc['title'] as string,
+      generateURL: (docs) => docs.reduce((url, doc) => `${url}/${doc['slug'] as string}`, ''),
+      // needs to be set to allow moving the fields into tabs
+      parentFieldSlug: 'parent',
+      breadcrumbsFieldSlug: 'breadcrumbs',
+    }),
+  ],
 })

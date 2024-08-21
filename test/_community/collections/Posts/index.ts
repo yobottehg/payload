@@ -1,64 +1,35 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, CollectionSlug } from 'payload'
+
+import { createBreadcrumbsField, createParentField } from '@payloadcms/plugin-nested-docs'
+
+import { ImageBlock } from '../Blocks/ImageBlock.js'
+import { mediaSlug } from '../Media/index.js'
 
 export const postsSlug = 'posts'
 
 export const PostsCollection: CollectionConfig = {
   slug: postsSlug,
-  admin: {
-    useAsTitle: 'text',
-  },
   fields: [
     {
-      admin: {
-        components: {
-          Label: '/collections/Posts/MyComponent.js#MyComponent',
-        },
-        description: 'This is a description',
-      },
-      name: 'text',
+      name: 'title',
+      required: true,
       type: 'text',
     },
     {
-      name: 'richText',
-      type: 'richText',
+      name: 'slug',
+      required: true,
+      type: 'text',
     },
     {
-      name: 'myBlocks',
+      name: 'content',
+      label: 'Content',
       type: 'blocks',
-      blocks: [
-        {
-          slug: 'test',
-          fields: [
-            {
-              name: 'test',
-              type: 'text',
-            },
-          ],
-        },
-        {
-          slug: 'someBlock2',
-          fields: [
-            {
-              name: 'test2',
-              type: 'text',
-            },
-          ],
-        },
-      ],
+      blocks: [ImageBlock],
     },
-    // {
-    //   type: 'row',
-    //   fields: [],
-    // },
-    // {
-    //   name: 'associatedMedia',
-    //   type: 'upload',
-    //   access: {
-    //     create: () => true,
-    //     update: () => false,
-    //   },
-    //   relationTo: mediaSlug,
-    // },
+    createParentField('posts', {
+      label: 'Parent Page',
+    }),
+    createBreadcrumbsField('posts', { index: true }),
   ],
   versions: {
     drafts: true,

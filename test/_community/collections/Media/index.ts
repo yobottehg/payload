@@ -4,11 +4,19 @@ export const mediaSlug = 'media'
 
 export const MediaCollection: CollectionConfig = {
   slug: mediaSlug,
+  admin: {
+    useAsTitle: 'alt',
+  },
   access: {
     create: () => true,
     read: () => true,
   },
-  fields: [],
+  fields: [
+    {
+      name: 'alt',
+      type: 'text',
+    },
+  ],
   upload: {
     crop: true,
     focalPoint: true,
